@@ -3,8 +3,12 @@ import type { RetrievedChunk, QueryAnswer, Citation } from './types';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_CHAT_MODEL = process.env.GEMINI_CHAT_MODEL || 'gemini-2.5-flash';
+// text-embedding-004 was shut down Jan 14 2026 — gemini-embedding-001 is the
+// current free-tier replacement. It defaults to 3072 dims but supports
+// scaling down via outputDimensionality (we use 768 to match Pinecone).
 const GEMINI_EMBED_MODEL =
-  process.env.GEMINI_EMBED_MODEL || 'text-embedding-004';
+  process.env.GEMINI_EMBED_MODEL || 'gemini-embedding-001';
+const EMBED_DIMENSION = parseInt(process.env.PINECONE_DIMENSION || '768', 10);
 
 const LLM_PROVIDER = (process.env.LLM_PROVIDER || 'gemini').toLowerCase();
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
@@ -18,11 +22,28 @@ if (!GEMINI_API_KEY) {
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
-/** Embeddings always go through Gemini's free text-embedding-004 model. */
+/**
+ * Embeddings go through Gemini's free gemini-embedding-001 model via direct
+ * REST call (the JS SDK's embedContent signature doesn't reliably expose
+ * outputDimensionality), scaled to match the Pinecone index dimension.
+ */
 export async function embedText(text: string): Promise<number[]> {
-  const model = genAI.getGenerativeModel({ model: GEMINI_EMBED_MODEL });
-  const result = await model.embedContent(text);
-  return result.embedding.values;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_EMBED_MODEL}:embedContent?key=${GEMINI_API_KEY}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      content: { parts: [{ text }] },
+      outputDimensionality: EMBED_DIMENSION,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(
+      `Gemini embedding error: ${data?.error?.message || res.statusText}`
+    );
+  }
+  return data.embedding.values as number[];
 }
 
 export async function embedTexts(texts: string[]): Promise<number[][]> {
