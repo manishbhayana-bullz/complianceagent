@@ -19,7 +19,19 @@ export async function POST(req: NextRequest) {
 
     const queryVector = await embedText(question);
     const filter = domain && domain !== 'all' ? { domain: { $eq: domain } } : undefined;
-    const retrievedChunks = await queryChunks(queryVector, topK, filter);
+    const rawChunks = await queryChunks(queryVector, topK, filter);
+
+    // If the same circular was ingested more than once (common during
+    // testing/iteration), retrieval can return several chunks with
+    // identical text. Collapse those before they reach the model so the
+    // answer doesn't double-cite the same passage.
+    const seenText = new Set<string>();
+    const retrievedChunks = rawChunks.filter((c) => {
+      const key = c.metadata.text.trim().toLowerCase();
+      if (seenText.has(key)) return false;
+      seenText.add(key);
+      return true;
+    });
 
     if (retrievedChunks.length === 0) {
       return NextResponse.json({
