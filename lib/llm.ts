@@ -168,26 +168,45 @@ function parseAnswerOutput(
     sourcesUsed = refs.length > 0 ? [...new Set(refs)] : chunks.map((_, i) => i + 1);
   }
 
-  const rawCitations: Citation[] = sourcesUsed
-    .map((n) => chunks[n - 1])
-    .filter((c): c is RetrievedChunk => Boolean(c))
-    .map((c) => ({
-      doc_id: c.metadata.doc_id,
-      title: c.metadata.title,
-      clause_ref: c.metadata.clause_ref,
-      chunk_index: c.metadata.chunk_index,
-      excerpt: c.metadata.text.slice(0, 280),
-    }));
+  // Dedupe sourcesUsed by underlying chunk text (handles circulars ingested
+  // more than once, which otherwise surface as separate-but-identical
+  // sources) and build an old-number -> new-number map so we can rewrite
+  // [Source N] labels in the answer text to match the deduped list. Doing
+  // this keeps the visible answer and citations list consistent — without
+  // it, a downstream consumer (e.g. the audit report) can see "[Source 2]"
+  // referenced in text that no longer has a 2nd citation, which reads as
+  // an unverifiable claim and wrongly depresses confidence.
+  const seenExcerpts = new Map<string, number>(); // excerpt -> new source number
+  const oldToNewSourceNumber = new Map<number, number>();
+  const citations: Citation[] = [];
 
-  // Dedupe by excerpt text: if the same circular was ingested more than
-  // once, retrieval can surface several near-identical chunks. Citing the
-  // same passage twice is noise, not useful traceability.
-  const seenExcerpts = new Set<string>();
-  const citations = rawCitations.filter((c) => {
-    const key = c.excerpt.trim().toLowerCase();
-    if (seenExcerpts.has(key)) return false;
-    seenExcerpts.add(key);
-    return true;
+  for (const n of sourcesUsed) {
+    const chunk = chunks[n - 1];
+    if (!chunk) continue;
+    const excerptKey = chunk.metadata.text.trim().toLowerCase();
+
+    if (seenExcerpts.has(excerptKey)) {
+      oldToNewSourceNumber.set(n, seenExcerpts.get(excerptKey)!);
+      continue;
+    }
+
+    const newNumber = citations.length + 1;
+    seenExcerpts.set(excerptKey, newNumber);
+    oldToNewSourceNumber.set(n, newNumber);
+    citations.push({
+      doc_id: chunk.metadata.doc_id,
+      title: chunk.metadata.title,
+      clause_ref: chunk.metadata.clause_ref,
+      chunk_index: chunk.metadata.chunk_index,
+      excerpt: chunk.metadata.text.slice(0, 280),
+    });
+  }
+
+  // Rewrite [Source N] labels in the answer to the renumbered, deduped set.
+  answer = answer.replace(/\[Source (\d+)\]/g, (match, numStr) => {
+    const oldNum = parseInt(numStr, 10);
+    const newNum = oldToNewSourceNumber.get(oldNum);
+    return newNum ? `[Source ${newNum}]` : match;
   });
 
   return { answer, citations, confidence, retrieved_chunks: chunks };
