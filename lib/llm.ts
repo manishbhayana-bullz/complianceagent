@@ -202,11 +202,22 @@ function parseAnswerOutput(
     });
   }
 
-  // Rewrite [Source N] labels in the answer to the renumbered, deduped set.
-  answer = answer.replace(/\[Source (\d+)\]/g, (match, numStr) => {
-    const oldNum = parseInt(numStr, 10);
-    const newNum = oldToNewSourceNumber.get(oldNum);
-    return newNum ? `[Source ${newNum}]` : match;
+  // Rewrite [Source N] / [Source N, Source M, ...] labels in the answer to
+  // the renumbered, deduped set. The model sometimes cites multiple sources
+  // in one bracket (e.g. "[Source 2, Source 3]"), so we match the whole
+  // bracket rather than a single number, renumber + dedupe each reference
+  // inside it, and reassemble.
+  answer = answer.replace(/\[Source [\d,\s]*\d[\s\d,]*\]/g, (bracket) => {
+    const nums = [...bracket.matchAll(/\d+/g)].map((m) => parseInt(m[0], 10));
+    const newNums = [
+      ...new Set(
+        nums
+          .map((n) => oldToNewSourceNumber.get(n))
+          .filter((n): n is number => typeof n === 'number')
+      ),
+    ];
+    if (newNums.length === 0) return bracket; // leave unrecognized refs untouched
+    return `[${newNums.map((n) => `Source ${n}`).join(', ')}]`;
   });
 
   return { answer, citations, confidence, retrieved_chunks: chunks };
