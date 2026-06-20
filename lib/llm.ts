@@ -168,7 +168,7 @@ function parseAnswerOutput(
     sourcesUsed = refs.length > 0 ? [...new Set(refs)] : chunks.map((_, i) => i + 1);
   }
 
-  const citations: Citation[] = sourcesUsed
+  const rawCitations: Citation[] = sourcesUsed
     .map((n) => chunks[n - 1])
     .filter((c): c is RetrievedChunk => Boolean(c))
     .map((c) => ({
@@ -178,6 +178,17 @@ function parseAnswerOutput(
       chunk_index: c.metadata.chunk_index,
       excerpt: c.metadata.text.slice(0, 280),
     }));
+
+  // Dedupe by excerpt text: if the same circular was ingested more than
+  // once, retrieval can surface several near-identical chunks. Citing the
+  // same passage twice is noise, not useful traceability.
+  const seenExcerpts = new Set<string>();
+  const citations = rawCitations.filter((c) => {
+    const key = c.excerpt.trim().toLowerCase();
+    if (seenExcerpts.has(key)) return false;
+    seenExcerpts.add(key);
+    return true;
+  });
 
   return { answer, citations, confidence, retrieved_chunks: chunks };
 }
