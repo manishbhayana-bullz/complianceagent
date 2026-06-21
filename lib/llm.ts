@@ -65,7 +65,7 @@ Rules:
 - Every factual claim must be traceable to a specific context chunk. Reference chunks by their [Source N] label.
 - Be precise about obligations, deadlines, thresholds, and exceptions — these are compliance-critical.
 - Keep the tone formal and audit-appropriate.
-- After your answer, on a new line, output a JSON object exactly in this form:
+- After your answer, on a new line, output a JSON object exactly in this form (no markdown code fences, just the raw JSON):
 {"confidence": "high|medium|low", "sources_used": [list of integers referring to [Source N] labels actually used]}
 `;
 
@@ -157,6 +157,11 @@ function parseAnswerOutput(
       // ignore malformed JSON, fall back to defaults
     }
     answer = rawOutput.slice(0, jsonMatch.index).trim();
+    // The model sometimes wraps the trailing JSON in a markdown code fence
+    // (```json ... ```). Since we only matched the {...} portion above, a
+    // dangling ```json marker can be left at the end of the answer text —
+    // strip it so it doesn't leak into what the user sees.
+    answer = answer.replace(/```json\s*$/i, '').replace(/```\s*$/i, '').trim();
   }
 
   // Fallback: if model didn't report sources, cite every retrieved chunk
