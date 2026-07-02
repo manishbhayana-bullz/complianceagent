@@ -38,6 +38,28 @@ export async function listDocuments(): Promise<DocumentRecord[]> {
   return data as DocumentRecord[];
 }
 
+/**
+ * Fetches a single document by id. Used by the delete route to confirm the
+ * document exists and to read its chunk_count before deleting the matching
+ * Pinecone vectors.
+ */
+export async function getDocument(
+  id: string
+): Promise<DocumentRecord | null> {
+  const { data, error } = await supabase
+    .from('documents')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as DocumentRecord) ?? null;
+}
+
+export async function deleteDocument(id: string): Promise<void> {
+  const { error } = await supabase.from('documents').delete().eq('id', id);
+  if (error) throw error;
+}
+
 export async function insertQueryLog(params: {
   question: string;
   answer: string;
