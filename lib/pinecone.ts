@@ -80,3 +80,27 @@ export async function queryChunks(
     metadata: m.metadata as unknown as ChunkMetadata,
   }));
 }
+
+/**
+ * Deletes all vectors belonging to a document.
+ *
+ * We reconstruct the exact vector IDs from doc_id + chunk_count rather than
+ * using a metadata filter delete, since ingest always writes vectors with
+ * deterministic IDs of the form `${docId}::${chunkIndex}` (see
+ * app/api/ingest/route.ts). This is more portable than filter-based delete,
+ * which has inconsistent support across Pinecone tiers/index types.
+ */
+export async function deleteChunksByDocId(
+  docId: string,
+  chunkCount: number
+): Promise<void> {
+  const index = getIndex();
+  const ids = Array.from({ length: chunkCount }, (_, i) => `${docId}::${i}`);
+
+  // Match the upsert batching convention (<= 100 ids per call).
+  const BATCH_SIZE = 100;
+  for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+    const batch = ids.slice(i, i + BATCH_SIZE);
+    await index.deleteMany(batch);
+  }
+}
