@@ -264,6 +264,7 @@ ${citationList}`;
   return generateWithGemini(prompt, AUDIT_NARRATIVE_SYSTEM_PROMPT);
 }
 const QUERY_REWRITE_SYSTEM_PROMPT = `You rewrite user questions to maximise semantic search retrieval from a regulatory document database. Return only the rewritten query — no explanation.`;
+const AUDIT_NARRATIVE_SYSTEM_PROMPT = `You write formal, audit-appropriate summaries of compliance Q&A exchanges. Write only the narrative paragraph requested — no JSON, no metadata, no confidence scores, no markdown formatting.`;
 
 /**
  * Rewrites a user's question into a more retrieval-friendly form before
