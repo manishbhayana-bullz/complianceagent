@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { embedText, generateAnswer } from '@/lib/llm';
 import { queryChunks } from '@/lib/pinecone';
 import { insertQueryLog } from '@/lib/supabase';
 import { embedText, generateAnswer, rewriteQuery } from '@/lib/llm';
