@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
       question,
       answer,
       citations,
+      confidence,
       generated_at: new Date().toISOString(),
       domains_covered: domainsCovered,
       disclaimer: DISCLAIMER,
