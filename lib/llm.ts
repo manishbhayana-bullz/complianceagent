@@ -97,16 +97,22 @@ export async function generateAnswer(
   return parseAnswerOutput(rawOutput, chunks);
 }
 
-async function generateWithGemini(userPrompt: string): Promise<string> {
+async function generateWithGemini(
+  userPrompt: string,
+  systemPrompt: string = SYSTEM_PROMPT
+): Promise<string> {
   const model = genAI.getGenerativeModel({
     model: GEMINI_CHAT_MODEL,
-    systemInstruction: SYSTEM_PROMPT,
+    systemInstruction: systemPrompt,
   });
   const result = await model.generateContent(userPrompt);
   return result.response.text();
 }
 
-async function generateWithClaude(userPrompt: string): Promise<string> {
+async function generateWithClaude(
+  userPrompt: string,
+  systemPrompt: string = SYSTEM_PROMPT
+): Promise<string> {
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -117,7 +123,7 @@ async function generateWithClaude(userPrompt: string): Promise<string> {
     body: JSON.stringify({
       model: ANTHROPIC_MODEL,
       max_tokens: 1500,
-      system: SYSTEM_PROMPT,
+      system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }],
     }),
   });
@@ -256,4 +262,30 @@ ${citationList}`;
     return generateWithClaude(prompt);
   }
   return generateWithGemini(prompt);
+}
+const QUERY_REWRITE_SYSTEM_PROMPT = `You rewrite user questions to maximise semantic search retrieval from a regulatory document database. Return only the rewritten query — no explanation.`;
+
+/**
+ * Rewrites a user's question into a more retrieval-friendly form before
+ * embedding — expands abbreviations, adds likely regulatory terminology and
+ * synonyms. Runs as a pre-retrieval step; the ORIGINAL question is still
+ * what gets shown to the user and passed to generateAnswer for the final
+ * response — only the embedding target changes.
+ */
+export async function rewriteQuery(question: string): Promise<string> {
+  const userPrompt = `Rewrite this user question for semantic search over Indian regulatory circulars. Make it specific, use regulatory terminology, expand abbreviations, and include likely synonyms in parentheses.
+
+Original question: ${question}
+
+Rules:
+- Max 2 sentences
+- Include: regulator name if inferrable, entity type, topic domain, timeframe if mentioned
+- Example: 'What is the KYC deadline?' → 'RBI KYC (Know Your Customer) compliance deadline for banks and NBFCs — customer due diligence re-verification timeline requirement'`;
+
+  const rewritten =
+    LLM_PROVIDER === 'claude' && ANTHROPIC_API_KEY
+      ? await generateWithClaude(userPrompt, QUERY_REWRITE_SYSTEM_PROMPT)
+      : await generateWithGemini(userPrompt, QUERY_REWRITE_SYSTEM_PROMPT);
+
+  return rewritten.trim();
 }
