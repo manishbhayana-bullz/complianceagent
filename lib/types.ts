@@ -41,6 +41,7 @@ export interface AuditReport {
   question: string;
   answer: string;
   citations: Citation[];
+  confidence: 'high' | 'medium' | 'low';
   generated_at: string;
   domains_covered: string[];
   disclaimer: string;
