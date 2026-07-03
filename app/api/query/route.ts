@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { embedText, generateAnswer } from '@/lib/llm';
 import { queryChunks } from '@/lib/pinecone';
 import { insertQueryLog } from '@/lib/supabase';
+import { embedText, generateAnswer, rewriteQuery } from '@/lib/llm';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -16,8 +17,15 @@ export async function POST(req: NextRequest) {
     if (!question || question.trim().length === 0) {
       return NextResponse.json({ error: 'No question provided' }, { status: 400 });
     }
-
-    const queryVector = await embedText(question);
+    
+    let searchQuery = question;
+    try {
+      searchQuery = await rewriteQuery(question);
+    } catch (err) {
+      console.warn('[api/query] query rewrite failed, using original question', err);
+    }
+    
+    const queryVector = await embedText(searchQuery);
     const filter = domain && domain !== 'all' ? { domain: { $eq: domain } } : undefined;
     const rawChunks = await queryChunks(queryVector, topK, filter);
 
