@@ -32,6 +32,7 @@ export default function AnswerCard({
           question,
           answer,
           citations,
+          confidence,
           query_log_id: queryLogId,
         }),
       });
@@ -141,6 +142,8 @@ function formatReportAsText(data: any): string {
   lines.push('');
   lines.push('ANSWER');
   lines.push(data.answer);
+  lines.push('');
+  lines.push(`CONFIDENCE: ${(data.confidence || '').toUpperCase()}`);
   lines.push('');
   lines.push('AUDIT NARRATIVE');
   lines.push(data.narrative);
