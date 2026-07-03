@@ -4,6 +4,7 @@ import { useState } from 'react';
 import UploadPanel from '@/components/UploadPanel';
 import QueryPanel, { QueryResult } from '@/components/QueryPanel';
 import AnswerCard from '@/components/AnswerCard';
+import KnowledgeBase from '@/components/KnowledgeBase';
 
 interface IngestedDoc {
   doc_id: string;
@@ -20,6 +21,7 @@ interface Exchange {
 export default function HomePage() {
   const [ingested, setIngested] = useState<IngestedDoc[]>([]);
   const [exchanges, setExchanges] = useState<Exchange[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 sm:py-16">
@@ -38,10 +40,13 @@ export default function HomePage() {
       </header>
 
       <div className="space-y-6">
-        <UploadPanel
-          onIngested={(doc) => setIngested((prev) => [doc, ...prev])}
+         <UploadPanel
+          onIngested={(doc) => {
+            setIngested((prev) => [doc, ...prev]);
+            setRefreshKey((k) => k + 1);
+          }}
         />
-
+        
         {ingested.length > 0 && (
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
             <p className="font-semibold">Indexed documents</p>
@@ -54,7 +59,7 @@ export default function HomePage() {
             </ul>
           </div>
         )}
-
+      <KnowledgeBase refreshKey={refreshKey} />
         <QueryPanel
           onResult={(question, result) =>
             setExchanges((prev) => [{ question, result }, ...prev])
