@@ -259,9 +259,9 @@ Sources relied upon:
 ${citationList}`;
 
   if (LLM_PROVIDER === 'claude' && ANTHROPIC_API_KEY) {
-  return generateWithClaude(prompt, AUDIT_NARRATIVE_SYSTEM_PROMPT);
-}
-return generateWithGemini(prompt, AUDIT_NARRATIVE_SYSTEM_PROMPT);
+    return generateWithClaude(prompt, AUDIT_NARRATIVE_SYSTEM_PROMPT);
+  }
+  return generateWithGemini(prompt, AUDIT_NARRATIVE_SYSTEM_PROMPT);
 }
 const QUERY_REWRITE_SYSTEM_PROMPT = `You rewrite user questions to maximise semantic search retrieval from a regulatory document database. Return only the rewritten query — no explanation.`;
 
