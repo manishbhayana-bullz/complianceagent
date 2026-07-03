@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
     const answer: string = body.answer;
     const citations: Citation[] = body.citations || [];
     const queryLogId: string | undefined = body.query_log_id;
+    const confidence: 'high' | 'medium' | 'low' = body.confidence || 'medium';
 
     if (!question || !answer) {
       return NextResponse.json(
