@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { Citation } from '@/lib/types';
+import type { Citation, Obligation, ToolCallRecord } from '@/lib/types';
 import { confidenceStyles } from './QueryPanel';
 
 export interface AnswerCardProps {
@@ -10,6 +10,11 @@ export interface AnswerCardProps {
   citations: Citation[];
   confidence: 'high' | 'medium' | 'low';
   queryLogId?: string;
+  // Present only for agent-mode answers.
+  reasoning?: string;
+  toolsUsed?: ToolCallRecord[];
+  obligations?: Obligation[];
+  confidenceReason?: string;
 }
 
 export default function AnswerCard({
@@ -18,7 +23,12 @@ export default function AnswerCard({
   citations,
   confidence,
   queryLogId,
+  reasoning,
+  toolsUsed,
+  obligations,
+  confidenceReason,
 }: AnswerCardProps) {
+  const isAgentAnswer = Boolean(toolsUsed);
   const [reportStatus, setReportStatus] = useState<'idle' | 'loading'>('idle');
   const [report, setReport] = useState<string | null>(null);
 
@@ -64,7 +74,7 @@ export default function AnswerCard({
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-            Question
+            {isAgentAnswer ? 'Question (agent mode)' : 'Question'}
           </p>
           <p className="mt-1 text-sm font-medium text-slate-800">{question}</p>
         </div>
@@ -75,9 +85,59 @@ export default function AnswerCard({
         </span>
       </div>
 
+      {isAgentAnswer && toolsUsed && toolsUsed.length > 0 && (
+        <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3">
+          {reasoning && (
+            <p className="text-xs italic text-slate-500">{reasoning}</p>
+          )}
+          <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Tool calls
+          </p>
+          <ul className="mt-1 space-y-1">
+            {toolsUsed.map((t, i) => (
+              <li key={i} className="text-xs text-slate-600">
+                <span className="font-mono text-slate-500">{t.tool}</span>
+                {t.input && 'query' in t.input ? (
+                  <span> · "{String((t.input as any).query)}"</span>
+                ) : null}
+                <span className="text-slate-400"> — {t.output_summary}</span>
+              </li>
+            ))}
+          </ul>
+          {confidenceReason && (
+            <p className="mt-2 text-xs text-slate-400">
+              Confidence rationale: {confidenceReason}
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
         {answer}
       </div>
+
+      {obligations && obligations.length > 0 && (
+        <div className="mt-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Obligations identified
+          </p>
+          <ul className="mt-2 space-y-2">
+            {obligations.map((o, i) => (
+              <li
+                key={i}
+                className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-slate-700"
+              >
+                {o.description}
+                {(o.source_doc_id || o.clause_ref) && (
+                  <span className="ml-1 text-slate-400">
+                    ({[o.clause_ref, o.source_doc_id].filter(Boolean).join(' · ')})
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {citations.length > 0 && (
         <div className="mt-5">
