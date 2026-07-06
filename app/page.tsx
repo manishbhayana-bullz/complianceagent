@@ -16,6 +16,7 @@ interface IngestedDoc {
 interface Exchange {
   question: string;
   result: QueryResult;
+  agentMode: boolean;
 }
 
 export default function HomePage() {
@@ -61,8 +62,8 @@ export default function HomePage() {
         )}
       <KnowledgeBase refreshKey={refreshKey} />
         <QueryPanel
-          onResult={(question, result) =>
-            setExchanges((prev) => [{ question, result }, ...prev])
+          onResult={(question, result, agentMode) =>
+            setExchanges((prev) => [{ question, result, agentMode }, ...prev])
           }
         />
 
@@ -74,6 +75,10 @@ export default function HomePage() {
             citations={ex.result.citations}
             confidence={ex.result.confidence}
             queryLogId={ex.result.query_log_id}
+            reasoning={ex.agentMode ? ex.result.reasoning : undefined}
+            toolsUsed={ex.agentMode ? ex.result.tools_used : undefined}
+            obligations={ex.agentMode ? ex.result.obligations : undefined}
+            confidenceReason={ex.agentMode ? ex.result.confidence_reason : undefined}
           />
         ))}
       </div>
