@@ -46,3 +46,43 @@ export interface AuditReport {
   domains_covered: string[];
   disclaimer: string;
 }
+
+// --- Phase 3: Agent orchestrator ---
+
+/** One entry in the agent's tool-call trail, surfaced for transparency/audit. */
+export interface ToolCallRecord {
+  tool: string;
+  input: Record<string, unknown>;
+  output_summary: string;
+}
+
+export interface Obligation {
+  description: string;
+  source_doc_id?: string;
+  clause_ref?: string;
+}
+
+/**
+ * Reserved for Milestone 2 (conflict detection / compare_obligations).
+ * The orchestrator's output schema always includes this field so the
+ * response shape is stable across milestones, but it is always [] until
+ * compare_obligations is wired in.
+ */
+export interface Conflict {
+  topic: string;
+  nature: string;
+  takes_precedence?: string;
+  action_required: string;
+}
+
+export interface AgentAnswer {
+  reasoning: string;
+  tools_used: ToolCallRecord[];
+  answer: string;
+  citations: Citation[];
+  obligations: Obligation[];
+  conflicts: Conflict[];
+  confidence: 'high' | 'medium' | 'low';
+  confidence_reason: string;
+  retrieved_chunks: RetrievedChunk[];
+}
