@@ -1,13 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import type { Citation } from '@/lib/types';
+import type { Citation, Obligation, ToolCallRecord } from '@/lib/types';
 
 export interface QueryResult {
   answer: string;
   citations: Citation[];
   confidence: 'high' | 'medium' | 'low';
   query_log_id?: string;
+  // Present only when Agent mode is used (Phase 3 orchestrator response).
+  reasoning?: string;
+  tools_used?: ToolCallRecord[];
+  obligations?: Obligation[];
+  confidence_reason?: string;
 }
 
 const confidenceStyles: Record<string, string> = {
@@ -19,10 +24,11 @@ const confidenceStyles: Record<string, string> = {
 export default function QueryPanel({
   onResult,
 }: {
-  onResult: (question: string, result: QueryResult) => void;
+  onResult: (question: string, result: QueryResult, agentMode: boolean) => void;
 }) {
   const [question, setQuestion] = useState('');
   const [domain, setDomain] = useState('all');
+  const [agentMode, setAgentMode] = useState(false);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -31,7 +37,7 @@ export default function QueryPanel({
     setStatus('loading');
     setErrorMsg('');
     try {
-      const res = await fetch('/api/query', {
+      const res = await fetch(agentMode ? '/api/agent' : '/api/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question, domain }),
@@ -39,7 +45,7 @@ export default function QueryPanel({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Query failed');
 
-      onResult(question, data as QueryResult);
+      onResult(question, data as QueryResult, agentMode);
       setStatus('idle');
     } catch (err: any) {
       setErrorMsg(err.message || 'Something went wrong');
@@ -49,9 +55,20 @@ export default function QueryPanel({
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-        Step 2 — Ask a compliance question
-      </h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+          Step 2 — Ask a compliance question
+        </h2>
+        <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-500">
+          <input
+            type="checkbox"
+            checked={agentMode}
+            onChange={(e) => setAgentMode(e.target.checked)}
+            className="h-3.5 w-3.5 accent-accent"
+          />
+          Agent mode
+        </label>
+      </div>
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row">
         <input
@@ -72,7 +89,13 @@ export default function QueryPanel({
           disabled={status === 'loading'}
           className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
         >
-          {status === 'loading' ? 'Retrieving…' : 'Ask'}
+          {status === 'loading'
+            ? agentMode
+              ? 'Agent reasoning…'
+              : 'Retrieving…'
+            : agentMode
+              ? 'Ask agent'
+              : 'Ask'}
         </button>
       </div>
 
