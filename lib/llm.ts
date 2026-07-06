@@ -22,6 +22,11 @@ if (!GEMINI_API_KEY) {
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
+// Re-exported for lib/agent.ts (Phase 3 orchestrator), which needs the same
+// client/provider config to build its own tool-calling loop rather than a
+// single-shot generateContent call.
+export { genAI, GEMINI_CHAT_MODEL, LLM_PROVIDER, ANTHROPIC_API_KEY, ANTHROPIC_MODEL };
+
 /**
  * Embeddings go through Gemini's free gemini-embedding-001 model via direct
  * REST call (the JS SDK's embedContent signature doesn't reliably expose
@@ -180,14 +185,34 @@ function parseAnswerOutput(
     sourcesUsed = refs.length > 0 ? [...new Set(refs)] : chunks.map((_, i) => i + 1);
   }
 
-  // Dedupe sourcesUsed by underlying chunk text (handles circulars ingested
-  // more than once, which otherwise surface as separate-but-identical
-  // sources) and build an old-number -> new-number map so we can rewrite
-  // [Source N] labels in the answer text to match the deduped list. Doing
-  // this keeps the visible answer and citations list consistent — without
-  // it, a downstream consumer (e.g. the audit report) can see "[Source 2]"
-  // referenced in text that no longer has a 2nd citation, which reads as
-  // an unverifiable claim and wrongly depresses confidence.
+  const resolved = resolveCitations(answer, sourcesUsed, chunks);
+
+  return {
+    answer: resolved.answer,
+    citations: resolved.citations,
+    confidence,
+    retrieved_chunks: chunks,
+  };
+}
+
+/**
+ * Shared citation-resolution step used by both the single-shot RAG answer
+ * (parseAnswerOutput above) and the Phase 3 agent orchestrator (lib/agent.ts).
+ *
+ * Dedupes sourcesUsed by underlying chunk text (handles circulars ingested
+ * more than once, which otherwise surface as separate-but-identical
+ * sources) and builds an old-number -> new-number map so [Source N] labels
+ * in the answer text can be rewritten to match the deduped list. Doing this
+ * keeps the visible answer and citations list consistent — without it, a
+ * downstream consumer (e.g. the audit report) can see "[Source 2]"
+ * referenced in text that no longer has a 2nd citation, which reads as an
+ * unverifiable claim and wrongly depresses confidence.
+ */
+export function resolveCitations(
+  answer: string,
+  sourcesUsed: number[],
+  chunks: RetrievedChunk[]
+): { answer: string; citations: Citation[] } {
   const seenExcerpts = new Map<string, number>(); // excerpt -> new source number
   const oldToNewSourceNumber = new Map<number, number>();
   const citations: Citation[] = [];
@@ -219,7 +244,7 @@ function parseAnswerOutput(
   // in one bracket (e.g. "[Source 2, Source 3]"), so we match the whole
   // bracket rather than a single number, renumber + dedupe each reference
   // inside it, and reassemble.
-  answer = answer.replace(/\[Source [\d,\s]*\d[\s\d,]*\]/g, (bracket) => {
+  const rewritten = answer.replace(/\[Source [\d,\s]*\d[\s\d,]*\]/g, (bracket) => {
     const nums = [...bracket.matchAll(/\d+/g)].map((m) => parseInt(m[0], 10));
     const newNums = [
       ...new Set(
@@ -232,7 +257,7 @@ function parseAnswerOutput(
     return `[${newNums.map((n) => `Source ${n}`).join(', ')}]`;
   });
 
-  return { answer, citations, confidence, retrieved_chunks: chunks };
+  return { answer: rewritten, citations };
 }
 
 /** Generates a formal audit-style writeup of a Q&A exchange for the audit report endpoint. */
