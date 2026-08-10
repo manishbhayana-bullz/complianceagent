@@ -17,7 +17,7 @@ export const supabase = createClient(
   { auth: { persistSession: false } }
 );
 
-export async function insertDocument(doc: DocumentRecord): Promise<void> {
+export async function insertDocument(doc: DocumentRecord & { user_id: string }): Promise<void> {
   const { error } = await supabase.from('documents').insert({
     id: doc.id,
     title: doc.title,
@@ -25,14 +25,16 @@ export async function insertDocument(doc: DocumentRecord): Promise<void> {
     source_type: doc.source_type,
     uploaded_at: doc.uploaded_at,
     chunk_count: doc.chunk_count,
+    user_id: doc.user_id,
   });
   if (error) throw error;
 }
 
-export async function listDocuments(): Promise<DocumentRecord[]> {
+export async function listDocuments(userId: string): Promise<DocumentRecord[]> {
   const { data, error } = await supabase
     .from('documents')
     .select('*')
+    .eq('user_id', userId)
     .order('uploaded_at', { ascending: false });
   if (error) throw error;
   return data as DocumentRecord[];
@@ -44,19 +46,25 @@ export async function listDocuments(): Promise<DocumentRecord[]> {
  * Pinecone vectors.
  */
 export async function getDocument(
-  id: string
+  id: string,
+  userId: string
 ): Promise<DocumentRecord | null> {
   const { data, error } = await supabase
     .from('documents')
     .select('*')
     .eq('id', id)
+    .eq('user_id', userId)
     .maybeSingle();
   if (error) throw error;
   return (data as DocumentRecord) ?? null;
 }
 
-export async function deleteDocument(id: string): Promise<void> {
-  const { error } = await supabase.from('documents').delete().eq('id', id);
+export async function deleteDocument(id: string, userId: string): Promise<void> {
+  const { error } = await supabase
+    .from('documents')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', userId);
   if (error) throw error;
 }
 
@@ -92,6 +100,21 @@ export async function insertAuditReport(
     domains_covered: report.domains_covered,
     generated_at: report.generated_at,
     disclaimer: report.disclaimer,
+  });
+  if (error) throw error;
+}
+// ADD — new function for the usage_log table (this is the core Phase A ask)
+export async function insertUsageLog(params: {
+  userId: string;
+  actionType: 'ingest' | 'query' | 'agent' | 'export';
+  documentId?: string;
+  tokensUsed?: number;
+}): Promise<void> {
+  const { error } = await supabase.from('usage_log').insert({
+    user_id: params.userId,
+    action_type: params.actionType,
+    document_id: params.documentId,
+    tokens_used: params.tokensUsed,
   });
   if (error) throw error;
 }
