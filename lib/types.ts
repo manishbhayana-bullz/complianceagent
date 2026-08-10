@@ -86,3 +86,13 @@ export interface AgentAnswer {
   confidence_reason: string;
   retrieved_chunks: RetrievedChunk[];
 }
+
+export interface DocumentRecord {
+  id: string;
+  title: string;
+  domain: string;
+  source_type: 'pdf' | 'text';
+  uploaded_at: string;
+  chunk_count: number;
++ user_id: string;
+}
