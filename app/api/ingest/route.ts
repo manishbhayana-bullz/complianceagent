@@ -4,13 +4,18 @@ import { extractTextFromPdf } from '@/lib/pdf';
 import { chunkText, detectClauseRef } from '@/lib/chunking';
 import { embedTexts } from '@/lib/llm';
 import { ensureIndex, upsertChunks } from '@/lib/pinecone';
-import { insertDocument } from '@/lib/supabase';
+import { insertDocument, insertUsageLog } from '@/lib/supabase';
+import { getAuthedUser } from '@/lib/auth';
 import type { ChunkMetadata } from '@/lib/types';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
+  const user = await getAuthedUser();
+  if (!user) {
+     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+ }
   try {
     const contentType = req.headers.get('content-type') || '';
     let title: string;
@@ -86,8 +91,14 @@ export async function POST(req: NextRequest) {
       source_type: sourceType,
       uploaded_at: new Date().toISOString(),
       chunk_count: chunks.length,
+      user_id: user.id,
     });
-
+    await insertUsageLog({
+         userId: user.id,
+         actionType: 'ingest',
+         documentId: docId,
+       }).catch((err) => console.warn('[api/ingest] usage log failed', err));
+    
     return NextResponse.json({
       doc_id: docId,
       title,
