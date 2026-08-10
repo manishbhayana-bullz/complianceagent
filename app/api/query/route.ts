@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { insertQueryLog } from '@/lib/supabase';
+import { insertQueryLog, insertUsageLog } from '@/lib/supabase';
+import { getAuthedUser } from '@/lib/auth';
 import { generateAnswer } from '@/lib/llm';
 import { retrieveChunks } from '@/lib/retrieval';
 
@@ -7,6 +8,10 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
+  const user = await getAuthedUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  }
   try {
     const body = await req.json();
     const question: string = body.question;
@@ -43,6 +48,9 @@ export async function POST(req: NextRequest) {
     } catch (logErr) {
       console.warn('[api/query] failed to log query', logErr);
     }
+
+    await insertUsageLog({ userId: user.id, actionType: 'query' })
+       .catch((err) => console.warn('[api/query] usage log failed', err));
 
     return NextResponse.json({ ...result, query_log_id: queryLogId });
   } catch (err: any) {
