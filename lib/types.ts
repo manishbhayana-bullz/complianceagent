@@ -5,6 +5,7 @@ export interface DocumentRecord {
   source_type: 'pdf' | 'text';
   uploaded_at: string;
   chunk_count: number;
+  user_id: string;
 }
 
 export interface ChunkMetadata {
