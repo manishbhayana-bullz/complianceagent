@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDocument, deleteDocument } from '@/lib/supabase';
 import { deleteChunksByDocId } from '@/lib/pinecone';
+import { getAuthedUser } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -9,14 +10,19 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const user = await getAuthedUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  }
+
   try {
-    const doc = await getDocument(params.id);
+    const doc = await getDocument(params.id, user.id);
     if (!doc) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
     await deleteChunksByDocId(doc.id, doc.chunk_count);
-    await deleteDocument(doc.id);
+    await deleteDocument(doc.id, user.id);
 
     return NextResponse.json({ deleted: doc.id });
   } catch (err: any) {
