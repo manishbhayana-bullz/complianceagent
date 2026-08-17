@@ -7,21 +7,7 @@ import AnswerCard from '@/components/AnswerCard';
 import KnowledgeBase from '@/components/KnowledgeBase';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
-
-function LogoutButton() {
-  const router = useRouter();
-  async function handleLogout() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push('/login');
-    router.refresh();
-  }
-  return (
-    <button onClick={handleLogout} className="text-sm text-slate-500 underline">
-      Log out
-    </button>
-  );
-}
+import { LogoutButton } from '@/components/LogoutButton';
 
 interface IngestedDoc {
   doc_id: string;
