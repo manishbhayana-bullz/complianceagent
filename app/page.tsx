@@ -8,7 +8,7 @@ import KnowledgeBase from '@/components/KnowledgeBase';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 
-export function LogoutButton() {
+function LogoutButton() {
   const router = useRouter();
   async function handleLogout() {
     const supabase = createClient();
