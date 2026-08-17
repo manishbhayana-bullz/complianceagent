@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
         answer: result.answer,
         confidence: result.confidence,
         citations: result.citations,
+        userId: user.id,
       });
     } catch (logErr) {
       console.warn('[api/query] failed to log query', logErr);
