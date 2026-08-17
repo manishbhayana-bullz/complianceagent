@@ -73,6 +73,7 @@ export async function insertQueryLog(params: {
   answer: string;
   confidence: string;
   citations: unknown;
+  userId?: string;
 }): Promise<string> {
   const { data, error } = await supabase
     .from('query_logs')
@@ -81,6 +82,7 @@ export async function insertQueryLog(params: {
       answer: params.answer,
       confidence: params.confidence,
       citations: params.citations,
+      user_id: params.userId,
     })
     .select('id')
     .single();
@@ -90,7 +92,8 @@ export async function insertQueryLog(params: {
 
 export async function insertAuditReport(
   queryLogId: string,
-  report: AuditReport
+  report: AuditReport,
+  userId?: string
 ): Promise<void> {
   const { error } = await supabase.from('audit_reports').insert({
     query_log_id: queryLogId,
@@ -100,6 +103,7 @@ export async function insertAuditReport(
     domains_covered: report.domains_covered,
     generated_at: report.generated_at,
     disclaimer: report.disclaimer,
+    user_id: userId,
   });
   if (error) throw error;
 }
