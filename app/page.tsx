@@ -43,19 +43,22 @@ export default function HomePage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 sm:py-16">
-      <header className="mb-10">
-        <p className="text-xs font-semibold uppercase tracking-widest text-accent">
-          ComplianceAgent · Phase 1 MVP
-        </p>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-          Multi-domain compliance Q&amp;A with cited answers
-        </h1>
-        <p className="mt-2 text-sm text-slate-500">
-          Ingest a circular, ask a question, get an answer grounded in the
-          source text with traceable citations and an exportable audit
-          report.
-        </p>
-      </header>
+      <header className="mb-10 flex items-start justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-accent">
+            ComplianceAgent · Phase 1 MVP
+          </p>
+          <h1 className="mt-2 text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+            Multi-domain compliance Q&amp;A with cited answers
+          </h1>
+          <p className="mt-2 text-sm text-slate-500">
+            Ingest a circular, ask a question, get an answer grounded in the
+            source text with traceable citations and an exportable audit
+            report.
+          </p>
+        </div>
+        <LogoutButton />
+  </header>
 
       <div className="space-y-6">
          <UploadPanel
