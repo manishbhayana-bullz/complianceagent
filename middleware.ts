@@ -29,10 +29,9 @@ export async function middleware(request: NextRequest) {
 
   const isLoginPage = request.nextUrl.pathname.startsWith('/login');
   const isAuthCallback = request.nextUrl.pathname.startsWith('/auth/callback');
+  const isApiRoute = request.nextUrl.pathname.startsWith('/api/');
 
-  // Not logged in, and trying to access anything other than /login or the
-  // auth callback route → send them to /login instead of letting the page load.
-  if (!user && !isLoginPage && !isAuthCallback) {
+  if (!user && !isLoginPage && !isAuthCallback && !isApiRoute) {
     const loginUrl = new URL('/login', request.url);
     return NextResponse.redirect(loginUrl);
   }
