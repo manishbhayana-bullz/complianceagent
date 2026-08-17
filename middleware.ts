@@ -23,7 +23,19 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  await supabase.auth.getUser(); // triggers refresh if needed
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const isLoginPage = request.nextUrl.pathname.startsWith('/login');
+  const isAuthCallback = request.nextUrl.pathname.startsWith('/auth/callback');
+
+  // Not logged in, and trying to access anything other than /login or the
+  // auth callback route → send them to /login instead of letting the page load.
+  if (!user && !isLoginPage && !isAuthCallback) {
+    const loginUrl = new URL('/login', request.url);
+    return NextResponse.redirect(loginUrl);
+  }
 
   return response;
 }
