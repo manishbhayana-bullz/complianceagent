@@ -5,6 +5,23 @@ import UploadPanel from '@/components/UploadPanel';
 import QueryPanel, { QueryResult } from '@/components/QueryPanel';
 import AnswerCard from '@/components/AnswerCard';
 import KnowledgeBase from '@/components/KnowledgeBase';
+import { createClient } from '@/lib/supabase/client';
+import { useRouter } from 'next/navigation';
+
+export function LogoutButton() {
+  const router = useRouter();
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push('/login');
+    router.refresh();
+  }
+  return (
+    <button onClick={handleLogout} className="text-sm text-slate-500 underline">
+      Log out
+    </button>
+  );
+}
 
 interface IngestedDoc {
   doc_id: string;
