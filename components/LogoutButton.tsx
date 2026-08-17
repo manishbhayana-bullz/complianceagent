@@ -12,7 +12,7 @@ export function LogoutButton() {
     router.refresh();
   }
   return (
-    <button onClick={handleLogout} className="text-sm text-slate-500 underline">
+    <button onClick={handleLogout} className="text-sm text-slate-500 underline whitespace-nowrap">
       Log out
     </button>
   );
