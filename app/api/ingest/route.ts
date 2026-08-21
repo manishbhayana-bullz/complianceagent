@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import { extractTextFromPdf } from '@/lib/pdf';
-import { chunkText, detectClauseRef } from '@/lib/chunking';
+import { chunkText } from '@/lib/chunking';
 import { embedTexts } from '@/lib/llm';
 import { ensureIndex, upsertChunks } from '@/lib/pinecone';
 import { insertDocument, insertUsageLog } from '@/lib/supabase';
@@ -53,6 +53,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // chunkText now returns Chunk[] ({ text, clauseRef }) instead of a plain
+    // string[] — clause_ref is computed during chunking, where we still have
+    // document-order context (which clause heading came before this text),
+    // rather than re-derived after the fact from an isolated chunk's own
+    // text (which is ambiguous or altogether missing the label).
     const chunks = chunkText(rawText);
     if (chunks.length === 0) {
       return NextResponse.json(
@@ -62,18 +67,18 @@ export async function POST(req: NextRequest) {
     }
 
     const docId = uuidv4();
-    const embeddings = await embedTexts(chunks);
+    const embeddings = await embedTexts(chunks.map((c) => c.text));
 
     await ensureIndex();
 
-    const upserts = chunks.map((chunkContent, i) => {
+    const upserts = chunks.map((chunk, i) => {
       const metadata: ChunkMetadata = {
         doc_id: docId,
         title,
         domain,
         chunk_index: i,
-        text: chunkContent,
-        clause_ref: detectClauseRef(chunkContent),
+        text: chunk.text,
+        clause_ref: chunk.clauseRef,
       };
       return {
         id: `${docId}::${i}`,
@@ -98,7 +103,7 @@ export async function POST(req: NextRequest) {
          actionType: 'ingest',
          documentId: docId,
        }).catch((err) => console.warn('[api/ingest] usage log failed', err));
-    
+
     return NextResponse.json({
       doc_id: docId,
       title,
